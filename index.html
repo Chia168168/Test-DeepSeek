@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TENG 圖片處理工具 v2.1 - 動態按鈕與輸入優化版</title>
+    <title>TENG 圖片處理工具 v2.2 - 按鈕顯示優化版</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -311,7 +311,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>TENG 圖片處理工具 <span class="version">v2.1 - 動態按鈕與輸入優化版</span></h1>
+        <h1>TENG 圖片處理工具 <span class="version">v2.2 - 按鈕顯示優化版</span></h1>
         
         <div class="section">
             <label>處理模式</label>
@@ -437,6 +437,7 @@
             <div class="progress-header">
                 <span id="progressTitle">處理進度</span>
                 <span id="progressPercentage">0%</span>
+
             </div>
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
@@ -469,965 +470,961 @@
     </div>
 
     <script>
-        let originalImages = [];
-        let processedBlobs = [];
-        let base64Data = [];
-        let downloadBlob = null;
-        let downloadFileName = '';
-        let currentDimensionMode = 'width';
-        let currentWidthValue = '1024';
-        let currentHeightValue = '1024';
-        let currentQualityValue = '0.9';
-        let currentFormatValue = 'image/jpeg';
-        let isProcessing = false;
-        let startTime = null;
-        let processedCount = 0;
-        let totalToProcess = 0;
-        let selectedFileType = null; // 追蹤選擇的檔案類型 ('image', 'base64', 或 null)
+    // 这里放置完整的JavaScript代码
+    // 由于代码较长，我将提供关键部分
+    
+    let originalImages = [];
+    let processedBlobs = [];
+    let base64Data = [];
+    let downloadBlob = null;
+    let downloadFileName = '';
+    let currentDimensionMode = 'width';
+    let currentWidthValue = '1024';
+    let currentHeightValue = '1024';
+    let currentQualityValue = '0.9';
+    let currentFormatValue = 'image/jpeg';
+    let isProcessing = false;
+    let startTime = null;
+    let processedCount = 0;
+    let totalToProcess = 0;
+    let selectedFileType = null;
 
-        // 檢查瀏覽器是否支援 webkitdirectory
-        function checkDirectorySupport() {
-            const input = document.createElement('input');
-            input.setAttribute('webkitdirectory', '');
-            return 'webkitdirectory' in input;
+    // 检查浏览器是否支持 webkitdirectory
+    function checkDirectorySupport() {
+        const input = document.createElement('input');
+        input.setAttribute('webkitdirectory', '');
+        return 'webkitdirectory' in input;
+    }
+
+    // 防抖函数
+    function debounce(func, wait) {
+        let timeout;
+        return function (...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+
+    // 触发文件输入
+    function triggerFileInput(inputId) {
+        if (isProcessing) {
+            showError('请等待当前处理完成后再选择文件');
+            return;
         }
-
-        // 防抖函數
-        function debounce(func, wait) {
-            let timeout;
-            return function (...args) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(this, args), wait);
-            };
+        
+        const mode = document.querySelector('.mode-button.active').dataset.mode;
+        if ((inputId === 'base64FolderInput' || inputId === 'base64FileInput') && mode !== 'base64') {
+            showError('请先切换到「Base64 互转」模式！');
+            return;
         }
-
-        // 觸發檔案輸入
-        function triggerFileInput(inputId) {
-            if (isProcessing) {
-                showError('請等待當前處理完成後再選擇檔案');
+        const input = document.getElementById(inputId);
+        if (input) {
+            if ((inputId === 'base64FolderInput' || inputId === 'imageFolderInput') && !checkDirectorySupport()) {
+                showError('此浏览器不支持文件夹选择，请使用 Chrome、Edge 或 Safari！');
                 return;
             }
-            
-            const mode = document.querySelector('.mode-button.active').dataset.mode;
-            if ((inputId === 'base64FolderInput' || inputId === 'base64FileInput') && mode !== 'base64') {
-                showError('請先切換到「Base64 互轉」模式！');
-                return;
-            }
-            const input = document.getElementById(inputId);
-            if (input) {
-                if ((inputId === 'base64FolderInput' || inputId === 'imageFolderInput') && !checkDirectorySupport()) {
-                    showError('此瀏覽器不支援資料夾選擇，請使用 Chrome、Edge 或 Safari！');
-                    return;
-                }
-                input.click();
-            } else {
-                showError(`無法找到輸入元素（${inputId}），請重新載入頁面！`);
-            }
+            input.click();
+        } else {
+            showError(`无法找到输入元素（${inputId}），请重新加载页面！`);
         }
+    }
 
-        // 更新處理按鈕和輸入按鈕的顯示狀態
-        function updateProcessButtons() {
-            const mode = document.querySelector('.mode-button.active').dataset.mode;
-            const resizeButton = document.getElementById('resizeButton');
-            const toBase64Button = document.getElementById('toBase64Button');
-            const fromBase64Button = document.getElementById('fromBase64Button');
-            const imageFileInputContainer = document.getElementById('imageFileInputContainer');
-            const imageFolderInputContainer = document.getElementById('imageFolderInputContainer');
-            const base64FileInputContainer = document.getElementById('base64FileInputContainer');
-            const base64FolderInputContainer = document.getElementById('base64FolderInputContainer');
+    // 更新处理按钮和输入按钮的显示状态
+    function updateProcessButtons() {
+        const mode = document.querySelector('.mode-button.active').dataset.mode;
+        const resizeButton = document.getElementById('resizeButton');
+        const toBase64Button = document.getElementById('toBase64Button');
+        const fromBase64Button = document.getElementById('fromBase64Button');
+        const imageFileInputContainer = document.getElementById('imageFileInputContainer');
+        const imageFolderInputContainer = document.getElementById('imageFolderInputContainer');
+        const base64FileInputContainer = document.getElementById('base64FileInputContainer');
+        const base64FolderInputContainer = document.getElementById('base64FolderInputContainer');
 
-            // 隱藏所有處理按鈕
-            resizeButton.style.display = 'none';
+        // 重置所有按钮为显示状态
+        resizeButton.style.display = 'block';
+        toBase64Button.style.display = 'block';
+        fromBase64Button.style.display = 'block';
+        imageFileInputContainer.style.display = 'block';
+        imageFolderInputContainer.style.display = 'block';
+        base64FileInputContainer.style.display = 'block';
+        base64FolderInputContainer.style.display = 'block';
+
+        // 根据模式和选择的文件类型调整显示
+        if (mode === 'resize') {
+            // 尺寸调整模式：隐藏Base64相关按钮
             toBase64Button.style.display = 'none';
             fromBase64Button.style.display = 'none';
-
-            // 隱藏所有輸入按鈕
-            imageFileInputContainer.style.display = 'none';
-            imageFolderInputContainer.style.display = 'none';
             base64FileInputContainer.style.display = 'none';
             base64FolderInputContainer.style.display = 'none';
-
-            if (mode === 'resize') {
-                // 尺寸調整模式：僅顯示 resizeButton 和圖片輸入按鈕
-                resizeButton.style.display = 'block';
-                imageFileInputContainer.style.display = 'block';
-                imageFolderInputContainer.style.display = 'block';
-            } else if (mode === 'base64') {
-                // Base64 模式：根據 selectedFileType 顯示按鈕
-                if (selectedFileType === 'image') {
-                    toBase64Button.style.display = 'block';
-                    imageFileInputContainer.style.display = 'block';
-                    imageFolderInputContainer.style.display = 'block';
-                } else if (selectedFileType === 'base64') {
-                    fromBase64Button.style.display = 'block';
-                    base64FileInputContainer.style.display = 'block';
-                    base64FolderInputContainer.style.display = 'block';
-                } else {
-                    // 無檔案選擇時，顯示所有 Base64 相關按鈕和輸入按鈕
-                    toBase64Button.style.display = 'block';
-                    fromBase64Button.style.display = 'block';
-                    imageFileInputContainer.style.display = 'block';
-                    imageFolderInputContainer.style.display = 'block';
-                    base64FileInputContainer.style.display = 'block';
-                    base64FolderInputContainer.style.display = 'block';
-                }
+        } else if (mode === 'base64') {
+            // Base64模式：根据选择的文件类型调整显示
+            if (selectedFileType === 'image') {
+                fromBase64Button.style.display = 'none';
+                base64FileInputContainer.style.display = 'none';
+                base64FolderInputContainer.style.display = 'none';
+            } else if (selectedFileType === 'base64') {
+                toBase64Button.style.display = 'none';
+                imageFileInputContainer.style.display = 'none';
+                imageFolderInputContainer.style.display = 'none';
             }
+            // 如果没有选择文件，则显示所有按钮
         }
+    }
 
-        // 模式切換
-        function switchMode(mode) {
-            if (isProcessing) {
-                showError('請等待當前處理完成後再切換模式');
-                return;
-            }
-            
-            document.querySelectorAll('.mode-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.mode === mode);
-            });
-            document.querySelectorAll('.mode-specific').forEach(el => {
-                el.style.display = el.dataset.mode === mode ? 'block' : 'none';
-            });
-            currentFormatValue = mode === 'resize' ? 'image/jpeg' : 'image/png';
-            document.querySelectorAll('.format-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.value === currentFormatValue);
-            });
-            toggleQualityContainer();
-            clearFiles(); // 清空檔案並重置按鈕
-            if (mode === 'resize') {
-                switchDimensionMode(currentDimensionMode);
-            }
+    // 模式切换
+    function switchMode(mode) {
+        if (isProcessing) {
+            showError('请等待当前处理完成后再切换模式');
+            return;
         }
-
-        // 尺寸模式切換
-        function switchDimensionMode(mode) {
-            currentDimensionMode = mode;
-            document.querySelectorAll('.dimension-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.mode === mode);
-            });
-            const widthContainer = document.getElementById('widthContainer');
-            const heightContainer = document.getElementById('heightContainer');
-            widthContainer.classList.toggle('hidden', mode === 'height');
-            heightContainer.classList.toggle('hidden', mode === 'width');
-            updateDimensionInputs();
-            updateFileList();
+        
+        document.querySelectorAll('.mode-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+        document.querySelectorAll('.mode-specific').forEach(el => {
+            el.style.display = el.dataset.mode === mode ? 'block' : 'none';
+        });
+        currentFormatValue = mode === 'resize' ? 'image/jpeg' : 'image/png';
+        document.querySelectorAll('.format-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === currentFormatValue);
+        });
+        toggleQualityContainer();
+        clearFiles(); // 清空文件并重置按钮
+        if (mode === 'resize') {
+            switchDimensionMode(currentDimensionMode);
         }
+    }
 
-        // 設置寬度或高度值
-        function setSize(type, value) {
-            const buttons = document.querySelectorAll(`#${type}Container .size-button`);
-            buttons.forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.value === value);
-            });
-            const input = document.getElementById(`${type}Input`);
-            input.classList.toggle('hidden', value !== 'custom');
-            if (type === 'width') {
-                currentWidthValue = value;
-            } else {
-                currentHeightValue = value;
-            }
-            updateDimensions();
-            updateFileList();
+    // 尺寸模式切换
+    function switchDimensionMode(mode) {
+        currentDimensionMode = mode;
+        document.querySelectorAll('.dimension-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+        const widthContainer = document.getElementById('widthContainer');
+        const heightContainer = document.getElementById('heightContainer');
+        widthContainer.classList.toggle('hidden', mode === 'height');
+        heightContainer.classList.toggle('hidden', mode === 'width');
+        updateDimensionInputs();
+        updateFileList();
+    }
+
+    // 设置宽度或高度值
+    function setSize(type, value) {
+        const buttons = document.querySelectorAll(`#${type}Container .size-button`);
+        buttons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === value);
+        });
+        const input = document.getElementById(`${type}Input`);
+        input.classList.toggle('hidden', value !== 'custom');
+        if (type === 'width') {
+            currentWidthValue = value;
+        } else {
+            currentHeightValue = value;
         }
+        updateDimensions();
+        updateFileList();
+    }
 
-        // 設置品質值
-        function setQuality(value) {
-            document.querySelectorAll('.quality-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.value === value);
-            });
-            const input = document.getElementById('qualityInput');
-            input.classList.toggle('hidden', value !== 'custom');
-            currentQualityValue = value;
-            updateFileList();
+    // 设置品质值
+    function setQuality(value) {
+        document.querySelectorAll('.quality-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === value);
+        });
+        const input = document.getElementById('qualityInput');
+        input.classList.toggle('hidden', value !== 'custom');
+        currentQualityValue = value;
+        updateFileList();
+    }
+
+    // 设置输出格式
+    function setFormat(value) {
+        document.querySelectorAll('.format-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === value);
+        });
+        currentFormatValue = value;
+        toggleQualityContainer();
+        updateFileList();
+    }
+
+    // 清空文件
+    function clearFiles() {
+        if (isProcessing) {
+            showError('请等待当前处理完成后再清空文件');
+            return;
         }
+        
+        originalImages = [];
+        processedBlobs = [];
+        base64Data = [];
+        selectedFileType = null; // 重置文件类型
+        document.getElementById('fileList').innerHTML = '';
+        document.getElementById('previewContainer').innerHTML = '';
+        document.getElementById('base64OutputContainer').innerHTML = '';
+        document.getElementById('base64Text').value = '';
+        document.getElementById('downloadButton').style.display = 'none';
+        document.getElementById('progressContainer').style.display = 'none';
+        document.getElementById('fileCount').textContent = '0';
+        document.querySelector('.status-indicator').className = 'status-indicator status-ready';
+        currentWidthValue = '1024';
+        currentHeightValue = '1024';
+        currentQualityValue = '0.9';
+        document.querySelectorAll('.size-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === '1024');
+        });
+        document.querySelectorAll('.quality-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === '0.9');
+        });
+        document.getElementById('widthInput').classList.add('hidden');
+        document.getElementById('heightInput').classList.add('hidden');
+        document.getElementById('qualityInput').classList.add('hidden');
+        document.querySelectorAll('.format-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === currentFormatValue);
+        });
+        updateProcessButtons(); // 更新按钮状态
+        updateFileList();
+    }
 
-        // 設置輸出格式
-        function setFormat(value) {
-            document.querySelectorAll('.format-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.value === value);
-            });
-            currentFormatValue = value;
-            toggleQualityContainer();
-            updateFileList();
-        }
-
-        // 清空檔案
-        function clearFiles() {
-            if (isProcessing) {
-                showError('請等待當前處理完成後再清空檔案');
-                return;
-            }
-            
-            originalImages = [];
-            processedBlobs = [];
-            base64Data = [];
-            selectedFileType = null; // 重置檔案類型
-            document.getElementById('fileList').innerHTML = '';
-            document.getElementById('previewContainer').innerHTML = '';
-            document.getElementById('base64OutputContainer').innerHTML = '';
-            document.getElementById('base64Text').value = '';
-            document.getElementById('downloadButton').style.display = 'none';
-            document.getElementById('progressContainer').style.display = 'none';
-            document.getElementById('fileCount').textContent = '0';
-            document.querySelector('.status-indicator').className = 'status-indicator status-ready';
-            currentWidthValue = '1024';
-            currentHeightValue = '1024';
-            currentQualityValue = '0.9';
-            document.querySelectorAll('.size-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.value === '1024');
-            });
-            document.querySelectorAll('.quality-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.value === '0.9');
-            });
-            document.getElementById('widthInput').classList.add('hidden');
-            document.getElementById('heightInput').classList.add('hidden');
-            document.getElementById('qualityInput').classList.add('hidden');
-            document.querySelectorAll('.format-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.value === currentFormatValue);
-            });
-            updateProcessButtons(); // 更新按鈕狀態
-            updateFileList();
-        }
-
-        // 顯示錯誤訊息
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-            const successDiv = document.getElementById('successMessage');
-            successDiv.style.display = 'none';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 5000);
-        }
-
-        // 顯示成功訊息
-        function showSuccess(message) {
-            const successDiv = document.getElementById('successMessage');
-            successDiv.textContent = message;
-            successDiv.style.display = 'block';
-            const errorDiv = document.getElementById('errorMessage');
+    // 显示错误消息
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        const successDiv = document.getElementById('successMessage');
+        successDiv.style.display = 'none';
+        setTimeout(() => {
             errorDiv.style.display = 'none';
-            setTimeout(() => {
-                successDiv.style.display = 'none';
-            }, 5000);
+        }, 5000);
+    }
+
+    // 显示成功消息
+    function showSuccess(message) {
+        const successDiv = document.getElementById('successMessage');
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.style.display = 'none';
+        setTimeout(() => {
+            successDiv.style.display = 'none';
+        }, 5000);
+    }
+
+    // 处理文件输入
+    document.getElementById('imageInput').addEventListener('change', e => handleFileSelect(e, true, 'image'));
+    document.getElementById('imageFolderInput').addEventListener('change', e => handleFileSelect(e, true, 'image'));
+    document.getElementById('base64FileInput').addEventListener('change', e => handleFileSelect(e, true, 'base64'));
+    document.getElementById('base64FolderInput').addEventListener('change', e => {
+        handleFileSelect(e, true, 'base64');
+    });
+
+    // 下载按钮
+    document.getElementById('downloadButton').addEventListener('click', () => {
+        if (downloadBlob && downloadFileName) {
+            saveAs(downloadBlob, downloadFileName);
+        } else {
+            showError('无可下载的文件，请先处理文件！');
+        }
+    });
+
+    function handleFileSelect(e, append = false, type = 'image') {
+        const files = e.target.files;
+        if (!files || files.length === 0) {
+            showError('未选择任何文件，请重新选择！');
+            return;
         }
 
-        // 處理檔案輸入
-        document.getElementById('imageInput').addEventListener('change', e => handleFileSelect(e, true, 'image'));
-        document.getElementById('imageFolderInput').addEventListener('change', e => handleFileSelect(e, true, 'image'));
-        document.getElementById('base64FileInput').addEventListener('change', e => handleFileSelect(e, true, 'base64'));
-        document.getElementById('base64FolderInput').addEventListener('change', e => {
-            handleFileSelect(e, true, 'base64');
-        });
+        if (!append) {
+            clearFiles();
+        }
 
-        // 下載按鈕
-        document.getElementById('downloadButton').addEventListener('click', () => {
-            if (downloadBlob && downloadFileName) {
-                saveAs(downloadBlob, downloadFileName);
-            else {
-                showError('無可下載的檔案，請先處理檔案！');
-            }
-        });
-
-        function handleFileSelect(e, append = false, type = 'image') {
-            const files = e.target.files;
-            if (!files || files.length === 0) {
-                showError('未選擇任何檔案，請重新選擇！');
+        let validFiles = Array.from(files);
+        if (type === 'base64') {
+            validFiles = validFiles.filter(file => file.name.toLowerCase().endsWith('.txt'));
+            if (validFiles.length === 0) {
+                showError('Base64 文件夹中无 .txt 文件，请选择包含 .txt 的文件夹！');
                 return;
             }
-
-            if (!append) {
-                clearFiles();
+        } else if (type === 'image') {
+            validFiles = validFiles.filter(file => {
+                const ext = file.name.toLowerCase();
+                return ext.match(/\.(jpeg|jpg|png|gif|bmp|webp|heic|heif)$/);
+            });
+            if (validFiles.length === 0) {
+                showError('图片文件夹中无支持的图片文件（JPEG、PNG、GIF、BMP、WebP、HEIC、HEIF），请重新选择！');
+                return;
             }
-
-            let validFiles = Array.from(files);
-            if (type === 'base64') {
-                validFiles = validFiles.filter(file => file.name.toLowerCase().endsWith('.txt'));
-                if (validFiles.length === 0) {
-                    showError('Base64 資料夾中無 .txt 檔案，請選擇包含 .txt 的資料夾！');
-                    return;
-                }
-            } else if (type === 'image') {
-                validFiles = validFiles.filter(file => {
-                    const ext = file.name.toLowerCase();
-                    return ext.match(/\.(jpeg|jpg|png|gif|bmp|webp|heic|heif)$/);
-                });
-                if (validFiles.length === 0) {
-                    showError('圖片資料夾中無支援的圖片檔案（JPEG、PNG、GIF、BMP、WebP、HEIC、HEIF），請重新選擇！');
-                    return;
-                }
-            }
-
-            // 設置檔案類型並更新按鈕
-            selectedFileType = type;
-            updateProcessButtons();
-
-            // 顯示載入中的狀態
-            document.querySelector('.status-indicator').className = 'status-indicator status-processing';
-            document.getElementById('fileCount').textContent = validFiles.length;
-            
-            // 分批處理檔案
-            processFilesInBatches(validFiles, type, 0);
         }
 
-        function processFilesInBatches(files, type, startIndex) {
-            const batchSize = 5;
-            const endIndex = Math.min(startIndex + batchSize, files.length);
-            
-            for (let i = startIndex; i < endIndex; i++) {
-                const file = files[i];
-                if (originalImages.some(img => img.file.name === file.name && img.file.size === file.size)) {
-                    showError(`檔案 ${file.name} 已存在，請選擇其他檔案！`);
-                    continue;
-                }
+        // 设置文件类型并更新按钮
+        selectedFileType = type;
+        updateProcessButtons();
 
-                if (type === 'image') {
-                    const isHeicHeif = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif');
-                    if (isHeicHeif) {
-                        heic2any({ blob: file, toType: 'image/png' })
-                            .then(result => {
-                                const reader = new FileReader();
-                                reader.onload = function(e) {
-                                    handleImageLoad(file, e.target.result, originalImages.length, 'image');
-                                    if (i === files.length - 1) {
-                                        document.querySelector('.status-indicator').className = 'status-indicator status-complete';
-                                    }
-                                };
-                                reader.readAsDataURL(result);
-                            })
-                            .catch(err => {
-                                showError(`HEIC/HEIF 轉換失敗 (${file.name})：${err.message}`);
-                                const reader = new FileReader();
-                                reader.onload = function(e) {
-                                    handleImageLoad(file, e.target.result, originalImages.length, 'image');
-                                    if (i === files.length - 1) {
-                                        document.querySelector('.status-indicator').className = 'status-indicator status-complete';
-                                    }
-                                };
-                                reader.readAsDataURL(file);
-                            });
-                    } else {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            handleImageLoad(file, e.target.result, originalImages.length, 'image');
-                            if (i === files.length - 1) {
-                                document.querySelector('.status-indicator').className = 'status-indicator status-complete';
-                            }
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                } else if (type === 'base64') {
+        // 显示加载中的状态
+        document.querySelector('.status-indicator').className = 'status-indicator status-processing';
+        document.getElementById('fileCount').textContent = validFiles.length;
+        
+        // 分批处理文件
+        processFilesInBatches(validFiles, type, 0);
+    }
+
+    function processFilesInBatches(files, type, startIndex) {
+        const batchSize = 5;
+        const endIndex = Math.min(startIndex + batchSize, files.length);
+        
+        for (let i = startIndex; i < endIndex; i++) {
+            const file = files[i];
+            if (originalImages.some(img => img.file.name === file.name && img.file.size === file.size)) {
+                showError(`文件 ${file.name} 已存在，请选择其他文件！`);
+                continue;
+            }
+
+            if (type === 'image') {
+                const isHeicHeif = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif');
+                if (isHeicHeif) {
+                    heic2any({ blob: file, toType: 'image/png' })
+                        .then(result => {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                handleImageLoad(file, e.target.result, originalImages.length, 'image');
+                                if (i === files.length - 1) {
+                                    document.querySelector('.status-indicator').className = 'status-indicator status-complete';
+                                }
+                            };
+                            reader.readAsDataURL(result);
+                        })
+                        .catch(err => {
+                            showError(`HEIC/HEIF 转换失败 (${file.name})：${err.message}`);
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                handleImageLoad(file, e.target.result, originalImages.length, 'image');
+                                if (i === files.length - 1) {
+                                    document.querySelector('.status-indicator').className = 'status-indicator status-complete';
+                                }
+                            };
+                            reader.readAsDataURL(file);
+                        });
+                } else {
                     const reader = new FileReader();
                     reader.onload = function(e) {
-                        handleBase64FileLoad(file, e.target.result, originalImages.length);
+                        handleImageLoad(file, e.target.result, originalImages.length, 'image');
                         if (i === files.length - 1) {
                             document.querySelector('.status-indicator').className = 'status-indicator status-complete';
                         }
                     };
-                    reader.readAsText(file);
+                    reader.readAsDataURL(file);
                 }
-            }
-            
-            if (endIndex < files.length) {
-                setTimeout(() => {
-                    processFilesInBatches(files, type, endIndex);
-                }, 100);
+            } else if (type === 'base64') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    handleBase64FileLoad(file, e.target.result, originalImages.length);
+                    if (i === files.length - 1) {
+                        document.querySelector('.status-indicator').className = 'status-indicator status-complete';
+                    }
+                };
+                reader.readAsText(file);
             }
         }
+        
+        if (endIndex < files.length) {
+            setTimeout(() => {
+                processFilesInBatches(files, type, endIndex);
+            }, 100);
+        }
+    }
 
-        function handleImageLoad(file, imageSrc, index, type) {
-            const img = new Image();
-            img.onload = function() {
-                originalImages.push({ file, img, type, base64: type === 'image' ? imageSrc : null });
+    function handleImageLoad(file, imageSrc, index, type) {
+        const img = new Image();
+        img.onload = function() {
+            originalImages.push({ file, img, type, base64: type === 'image' ? imageSrc : null });
+            updateFileList();
+            const thumbnail = document.createElement('img');
+            thumbnail.src = imageSrc;
+            thumbnail.className = 'thumbnail';
+            thumbnail.dataset.index = index;
+            thumbnail.title = file.name;
+            document.getElementById('previewContainer').appendChild(thumbnail);
+            if (document.querySelector('.mode-button.active').dataset.mode === 'resize') {
+                updateDimensionInputs();
+            }
+        };
+        img.onerror = function() {
+            showError(`无法加载图片：${file.name}，请确认文件格式是否为 JPEG、PNG、HEIC 或 HEIF！`);
+        };
+        img.src = imageSrc;
+    }
+
+    async function handleBase64FileLoad(file, text, index) {
+        let base64String = text.trim();
+        if (!base64String) {
+            showError(`Base64 文件 ${file.name} 内容为空，请检查文件！`);
+            return;
+        }
+
+        const prefixes = [
+            'data:image/jpeg;base64,',
+            'data:image/png;base64,',
+            'data:image/webp;base64,',
+            'data:image/gif;base64,'
+        ];
+
+        if (base64String.startsWith('data:image/')) {
+            await tryImageLoad(file, base64String, index);
+            return;
+        }
+
+        for (let prefix of prefixes) {
+            const testString = prefix + base64String;
+            const isValid = await tryImageLoad(file, testString, index, false);
+            if (isValid) {
+                originalImages.push({ file, img: new Image(), type: 'base64', base64: testString });
                 updateFileList();
                 const thumbnail = document.createElement('img');
-                thumbnail.src = imageSrc;
+                thumbnail.src = testString;
                 thumbnail.className = 'thumbnail';
                 thumbnail.dataset.index = index;
                 thumbnail.title = file.name;
                 document.getElementById('previewContainer').appendChild(thumbnail);
-                if (document.querySelector('.mode-button.active').dataset.mode === 'resize') {
-                    updateDimensionInputs();
-                }
-            };
-            img.onerror = function() {
-                showError(`無法載入圖片：${file.name}，請確認檔案格式是否為 JPEG、PNG、HEIC 或 HEIF！`);
-            };
-            img.src = imageSrc;
-        }
-
-        async function handleBase64FileLoad(file, text, index) {
-            let base64String = text.trim();
-            if (!base64String) {
-                showError(`Base64 檔案 ${file.name} 內容為空，請檢查檔案！`);
                 return;
             }
+        }
 
+        showError(`无法加载 Base64 文件：${file.name}，请确认内容是否为有效的图片 Base64 字符串！`);
+    }
+
+    async function tryImageLoad(file, base64String, index, addToImages = true) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = function() {
+                if (addToImages) {
+                    originalImages.push({ file, img, type: 'base64', base64: base64String });
+                    updateFileList();
+                    const thumbnail = document.createElement('img');
+                    thumbnail.src = base64String;
+                    thumbnail.className = 'thumbnail';
+                    thumbnail.dataset.index = index;
+                    thumbnail.title = file.name;
+                    document.getElementById('previewContainer').appendChild(thumbnail);
+                }
+                resolve(true);
+            };
+            img.onerror = function() {
+                resolve(false);
+            };
+            img.src = base64String;
+        });
+    }
+
+    function updateFileList() {
+        const fileList = document.getElementById('fileList');
+        fileList.innerHTML = '';
+        const mode = document.querySelector('.mode-button.active').dataset.mode;
+        document.getElementById('fileCount').textContent = originalImages.length;
+
+        originalImages.forEach((item, index) => {
+            const listItem = document.createElement('div');
+            listItem.className = 'file-item';
+            let text = `${item.file.name} (${item.type === 'image' ? '图片' : 'Base64'})`;
+            if (mode === 'resize' && item.type === 'image') {
+                const widthInput = parseInt(document.getElementById('widthInput').value) || item.img.width;
+                const heightInput = parseInt(document.getElementById('heightInput').value) || item.img.height;
+                const dimensionMode = currentDimensionMode;
+                const aspectRatio = document.getElementById('aspectRatio').checked;
+
+                let width = dimensionMode !== 'height' && currentWidthValue === 'custom' ? widthInput : parseInt(currentWidthValue) || item.img.width;
+                let height = dimensionMode !== 'width' && currentHeightValue === 'custom' ? heightInput : parseInt(currentHeightValue) || item.img.height;
+
+                if (aspectRatio) {
+                    const ratio = item.img.height / item.img.width;
+                    if (dimensionMode === 'width' && currentWidthValue !== '') {
+                        height = Math.round(width * ratio);
+                    } else if (dimensionMode === 'height' && currentHeightValue !== '') {
+                        width = Math.round(height / ratio);
+                    } else if (dimensionMode === 'both' && currentWidthValue !== '' && currentHeightValue !== '') {
+                        height = Math.round(width * ratio);
+                    }
+                } else if (dimensionMode === 'width') {
+                    height = item.img.height;
+                } else if (dimensionMode === 'height') {
+                    width = item.img.width;
+                }
+
+                text += ` | 原尺寸: ${item.img.width}x${item.img.height}`;
+                if (width && height) {
+                    text += ` | 调整后: ${width}x${height}`;
+                }
+            }
+            listItem.textContent = text;
+            fileList.appendChild(listItem);
+        });
+    }
+
+    function toggleQualityContainer() {
+        const qualityContainer = document.getElementById('qualityContainer');
+        qualityContainer.style.display = currentFormatValue === 'image/png' ? 'none' : 'block';
+        updateFileList();
+    }
+
+    function updateDimensionInputs() {
+        if (!originalImages[0]) return;
+        const width = originalImages[0].img.width;
+        const height = originalImages[0].img.height;
+        const options = ['256', '512', '1024', '1280'];
+        currentWidthValue = options.includes(width.toString()) ? width.toString() : '1024';
+        currentHeightValue = options.includes(height.toString()) ? height.toString() : '1024';
+        document.querySelectorAll('#widthContainer .size-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === currentWidthValue);
+        });
+        document.querySelectorAll('#heightContainer .size-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.value === currentHeightValue);
+        });
+        document.getElementById('widthInput').classList.toggle('hidden', currentWidthValue !== 'custom');
+        document.getElementById('heightInput').classList.toggle('hidden', currentHeightValue !== 'custom');
+        updateDimensions();
+    }
+
+    function updateDimensions() {
+        if (!originalImages[0]) return;
+
+        const widthInput = parseInt(document.getElementById('widthInput').value) || 0;
+        const heightInput = parseInt(document.getElementById('heightInput').value) || 0;
+        const aspectRatio = document.getElementById('aspectRatio').checked;
+
+        let width = currentWidthValue === 'custom' ? (widthInput || originalImages[0].img.width) : parseInt(currentWidthValue);
+        let height = currentHeightValue === 'custom' ? (heightInput || originalImages[0].img.height) : parseInt(currentHeightValue);
+
+        if (aspectRatio) {
+            const ratio = originalImages[0].img.height / originalImages[0].img.width;
+            if (currentDimensionMode === 'width' && width > 0) {
+                currentHeightValue = 'custom';
+                height = Math.round(width * ratio);
+                document.getElementById('heightInput').value = height;
+                document.querySelectorAll('#heightContainer .size-button').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.value === 'custom');
+                });
+                if (!document.getElementById('heightContainer').classList.contains('hidden')) {
+                    document.getElementById('heightInput').classList.remove('hidden');
+                }
+            } else if (currentDimensionMode === 'height' && height > 0) {
+                currentWidthValue = 'custom';
+                width = Math.round(height / ratio);
+                document.getElementById('widthInput').value = width;
+                document.querySelectorAll('#widthContainer .size-button').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.value === 'custom');
+                });
+                if (!document.getElementById('widthContainer').classList.contains('hidden')) {
+                    document.getElementById('widthInput').classList.remove('hidden');
+                }
+            } else if (currentDimensionMode === 'both' && width > 0) {
+                currentHeightValue = 'custom';
+                height = Math.round(width * ratio);
+                document.getElementById('heightInput').value = height;
+                document.querySelectorAll('#heightContainer .size-button').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.value === 'custom');
+                });
+                document.getElementById('heightInput').classList.remove('hidden');
+            }
+        }
+        updateFileList();
+    }
+
+    // 防抖处理输入框
+    const debouncedUpdateDimensions = debounce(updateDimensions, 300);
+    document.getElementById('widthInput').addEventListener('input', debouncedUpdateDimensions);
+    document.getElementById('heightInput').addEventListener('input', debouncedUpdateDimensions);
+    document.getElementById('qualityInput').addEventListener('input', updateFileList);
+    document.getElementById('aspectRatio').addEventListener('change', updateDimensions);
+
+    function updateProgress(current, total, processedItem = null) {
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const progressPercentage = document.getElementById('progressPercentage');
+        const timeRemaining = document.getElementById('timeRemaining');
+        
+        progressContainer.style.display = 'block';
+        const percentage = total > 0 ? (current / total) * 100 : 0;
+        progressFill.style.width = `${percentage}%`;
+        progressPercentage.textContent = `${Math.round(percentage)}%`;
+        
+        if (processedItem) {
+            progressText.textContent = `处理中：${current}/${total} (${processedItem})`;
+        } else {
+            progressText.textContent = `处理中：${current}/${total}`;
+        }
+        
+        if (startTime && current > 0) {
+            const elapsedTime = (Date.now() - startTime) / 1000;
+            const timePerItem = elapsedTime / current;
+            const remainingItems = total - current;
+            const remainingTime = timePerItem * remainingItems;
+            
+            if (remainingTime > 60) {
+                timeRemaining.textContent = `预计剩余时间：${Math.round(remainingTime / 60)} 分钟`;
+            } else {
+                timeRemaining.textContent = `预计剩余时间：${Math.round(remainingTime)} 秒`;
+            }
+        }
+    }
+
+    function disableUI() {
+        isProcessing = true;
+        document.querySelectorAll('.file-button, .process-button, .clear-button').forEach(btn => {
+            btn.disabled = true;
+        });
+        document.querySelector('.status-indicator').className = 'status-indicator status-processing';
+    }
+
+    function enableUI() {
+        isProcessing = false;
+        document.querySelectorAll('.file-button, .process-button, .clear-button').forEach(btn => {
+            btn.disabled = false;
+        });
+        document.querySelector('.status-indicator').className = 'status-indicator status-complete';
+    }
+
+    async function processResize() {
+        if (originalImages.length === 0 || !originalImages.some(item => item.type === 'image')) {
+            showError('请先选择图片文件！');
+            return;
+        }
+
+        disableUI();
+        const format = currentFormatValue;
+        const widthInput = parseInt(document.getElementById('widthInput').value);
+        const heightInput = parseInt(document.getElementById('heightInput').value);
+        const aspectRatio = document.getElementById('aspectRatio').checked;
+        const qualityInput = parseInt(document.getElementById('qualityInput').value);
+        const quality = currentQualityValue === 'custom' ? (qualityInput / 100) || 0.9 : parseFloat(currentQualityValue);
+
+        const zip = new JSZip();
+        processedBlobs = [];
+        document.getElementById('previewContainer').innerHTML = '';
+        const totalImages = originalImages.filter(item => item.type === 'image').length;
+        processedCount = 0;
+        totalToProcess = totalImages;
+        startTime = Date.now();
+
+        document.getElementById('progressTitle').textContent = '调整尺寸与格式';
+        updateProgress(0, totalImages);
+
+        for (let i = 0; i < originalImages.length; i++) {
+            const item = originalImages[i];
+            if (item.type !== 'image') continue;
+
+            processedCount++;
+            updateProgress(processedCount, totalImages, item.file.name);
+
+            const img = item.img;
+            const canvas = document.createElement('canvas');
+            let width = currentWidthValue === 'custom' ? (widthInput || img.width) : parseInt(currentWidthValue) || img.width;
+            let height = currentHeightValue === 'custom' ? (heightInput || img.height) : parseInt(currentHeightValue) || img.height;
+
+            if (aspectRatio) {
+                const ratio = img.height / img.width;
+                if (currentDimensionMode === 'width' && currentWidthValue !== '') {
+                    height = Math.round(width * ratio);
+                } else if (currentDimensionMode === 'height' && currentHeightValue !== '') {
+                    width = Math.round(height / ratio);
+                } else if (currentDimensionMode === 'both' && currentWidthValue !== '' && currentHeightValue !== '') {
+                    height = Math.round(width * ratio);
+                }
+            } else if (currentDimensionMode === 'width') {
+                height = img.height;
+            } else if (currentDimensionMode === 'height') {
+                width = img.width;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            if (format !== 'image/png') {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            ctx.drawImage(img, 0, 0, width, height);
+
+            try {
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, format, format === 'image/png' ? 1.0 : quality));
+                const originalName = item.file.name.split('.').slice(0, -1).join('.');
+                const extension = format.split('/')[1];
+                const newFileName = `${originalName}_${width}x${height}.${extension}`;
+                processedBlobs.push({ blob, name: newFileName });
+
+                if (totalImages > 1) {
+                    zip.file(newFileName, blob);
+                }
+
+                const thumbnail = document.createElement('img');
+                thumbnail.src = URL.createObjectURL(blob);
+                thumbnail.className = 'thumbnail';
+                thumbnail.dataset.index = i;
+                thumbnail.title = newFileName;
+                document.getElementById('previewContainer').appendChild(thumbnail);
+                
+                if (processedCount % 5 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+            } catch (err) {
+                showError(`处理图片 ${item.file.name} 失败：${err.message}`);
+            }
+        }
+
+        document.getElementById('progressContainer').style.display = 'none';
+        const downloadButton = document.getElementById('downloadButton');
+        downloadButton.style.display = 'block';
+
+        if (totalImages === 1) {
+            downloadBlob = processedBlobs[0].blob;
+            downloadFileName = processedBlobs[0].name;
+            downloadButton.textContent = '下载处理后的图片';
+        } else {
+            try {
+                updateProgress(processedCount, totalImages, '生成ZIP文件中...');
+                downloadBlob = await zip.generateAsync({ type: 'blob' });
+                downloadFileName = 'processed_images.zip';
+                downloadButton.textContent = '下载 ZIP 压缩档';
+            } catch (err) {
+                showError(`生成 ZIP 文件失败：${err.message}`);
+            }
+        }
+        
+        enableUI();
+        showSuccess('图片处理完成！');
+    }
+
+    async function processImageToBase64() {
+        if (selectedFileType !== 'image' || !originalImages.some(item => item.type === 'image')) {
+            showError('请先选择图片文件！');
+            return;
+        }
+
+        disableUI();
+        const zip = new JSZip();
+        base64Data = [];
+        document.getElementById('base64OutputContainer').innerHTML = '';
+        const totalImages = originalImages.filter(item => item.type === 'image').length;
+        processedCount = 0;
+        totalToProcess = totalImages;
+        startTime = Date.now();
+
+        document.getElementById('progressTitle').textContent = '图片转 Base64';
+        updateProgress(0, totalImages);
+
+        for (let i = 0; i < originalImages.length; i++) {
+            const item = originalImages[i];
+            if (item.type !== 'image') continue;
+
+            processedCount++;
+            updateProgress(processedCount, totalImages, item.file.name);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = item.img.width;
+            canvas.height = item.img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(item.img, 0, 0);
+
+            try {
+                const base64String = canvas.toDataURL(currentFormatValue);
+                base64Data.push({ name: item.file.name, base64: base64String });
+
+                const outputDiv = document.createElement('div');
+                outputDiv.className = 'file-item';
+                outputDiv.innerHTML = `<strong>${item.file.name}</strong><br><textarea readonly>${base64String}</textarea>`;
+                document.getElementById('base64OutputContainer').appendChild(outputDiv);
+
+                if (totalImages > 1) {
+                    zip.file(`${item.file.name}.txt`, base64String);
+                }
+                
+                if (processedCount % 3 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+            } catch (err) {
+                showError(`图片 ${item.file.name} 转 Base64 失败：${err.message}`);
+            }
+        }
+
+        document.getElementById('progressContainer').style.display = 'none';
+        const downloadButton = document.getElementById('downloadButton');
+        downloadButton.style.display = 'block';
+
+        if (totalImages === 1) {
+            const { base64, name } = base64Data[0];
+            downloadBlob = new Blob([base64], { type: 'text/plain' });
+            downloadFileName = `${name}.txt`;
+            downloadButton.textContent = '下载 Base64 文件';
+        } else {
+            try {
+                updateProgress(processedCount, totalImages, '生成ZIP文件中...');
+                downloadBlob = await zip.generateAsync({ type: 'blob' });
+                downloadFileName = 'base64_files.zip';
+                downloadButton.textContent = '下载 Base64 ZIP 压缩档';
+            } catch (err) {
+                showError(`生成 Base64 ZIP 文件失败：${err.message}`);
+            }
+        }
+        
+        enableUI();
+        showSuccess('Base64转换完成！');
+    }
+
+    async function processBase64ToImage() {
+        let base64String = document.getElementById('base64Text').value.trim();
+        const format = currentFormatValue;
+        const qualityInput = parseInt(document.getElementById('qualityInput').value);
+        const quality = currentQualityValue === 'custom' ? (qualityInput / 100) || 0.9 : parseFloat(currentQualityValue);
+        const base64Files = originalImages.filter(item => item.type === 'base64');
+
+        if (!base64String && base64Files.length === 0) {
+            showError('请输入 Base64 字符串或选择 Base64 文件！');
+            return;
+        }
+
+        if (selectedFileType === 'image' && !base64String) {
+            showError('请选择 Base64 文件或输入 Base64 字符串！');
+            return;
+        }
+
+        disableUI();
+        const zip = new JSZip();
+        processedBlobs = [];
+        document.getElementById('previewContainer').innerHTML = '';
+        const totalItems = (base64String ? 1 : 0) + base64Files.length;
+        processedCount = 0;
+        totalToProcess = totalItems;
+        startTime = Date.now();
+
+        document.getElementById('progressTitle').textContent = 'Base64 转图片';
+        updateProgress(0, totalItems);
+
+        if (base64String) {
+            processedCount++;
+            updateProgress(processedCount, totalItems, 'Base64字符串');
+
+            let validBase64 = base64String;
             const prefixes = [
                 'data:image/jpeg;base64,',
                 'data:image/png;base64,',
                 'data:image/webp;base64,',
                 'data:image/gif;base64,'
             ];
-
-            if (base64String.startsWith('data:image/')) {
-                await tryImageLoad(file, base64String, index);
-                return;
-            }
-
-            for (let prefix of prefixes) {
-                const testString = prefix + base64String;
-                const isValid = await tryImageLoad(file, testString, index, false);
-                if (isValid) {
-                    originalImages.push({ file, img: new Image(), type: 'base64', base64: testString });
-                    updateFileList();
-                    const thumbnail = document.createElement('img');
-                    thumbnail.src = testString;
-                    thumbnail.className = 'thumbnail';
-                    thumbnail.dataset.index = index;
-                    thumbnail.title = file.name;
-                    document.getElementById('previewContainer').appendChild(thumbnail);
-                    return;
+            if (!base64String.startsWith('data:image/')) {
+                for (let prefix of prefixes) {
+                    const testString = prefix + base64String;
+                    const isValid = await tryImageLoad(null, testString, 0, false);
+                    if (isValid) {
+                        validBase64 = testString;
+                        break;
+                    }
                 }
             }
 
-            showError(`無法載入 Base64 檔案：${file.name}，請確認內容是否為有效的圖片 Base64 字串！`);
-        }
-
-        async function tryImageLoad(file, base64String, index, addToImages = true) {
-            return new Promise((resolve) => {
+            try {
                 const img = new Image();
-                img.onload = function() {
-                    if (addToImages) {
-                        originalImages.push({ file, img, type: 'base64', base64: base64String });
-                        updateFileList();
-                        const thumbnail = document.createElement('img');
-                        thumbnail.src = base64String;
-                        thumbnail.className = 'thumbnail';
-                        thumbnail.dataset.index = index;
-                        thumbnail.title = file.name;
-                        document.getElementById('previewContainer').appendChild(thumbnail);
-                    }
-                    resolve(true);
-                };
-                img.onerror = function() {
-                    resolve(false);
-                };
-                img.src = base64String;
-            });
-        }
-
-        function updateFileList() {
-            const fileList = document.getElementById('fileList');
-            fileList.innerHTML = '';
-            const mode = document.querySelector('.mode-button.active').dataset.mode;
-            document.getElementById('fileCount').textContent = originalImages.length;
-
-            originalImages.forEach((item, index) {
-                const listItem = document.createElement('div');
-                listItem.className = 'file-item';
-                let text = `${item.file.name} (${item.type === 'image' ? '圖片' : 'Base64'})`;
-                if (mode === 'resize' && item.type === 'image') {
-                    const widthInput = parseInt(document.getElementById('widthInput').value) || item.img.width;
-                    const heightInput = parseInt(document.getElementById('heightInput').value) || item.img.height;
-                    const dimensionMode = currentDimensionMode;
-                    const aspectRatio = document.getElementById('aspectRatio').checked;
-
-                    let width = dimensionMode !== 'height' && currentWidthValue === 'custom' ? widthInput : parseInt(currentWidthValue) || item.img.width;
-                    let height = dimensionMode !== 'width' && currentHeightValue === 'custom' ? heightInput : parseInt(currentHeightValue) || item.img.height;
-
-                    if (aspectRatio) {
-                        const ratio = item.img.height / item.img.width;
-                        if (dimensionMode === 'width' && currentWidthValue !== '') {
-                            height = Math.round(width * ratio);
-                        } else if (dimensionMode === 'height' && currentHeightValue !== '') {
-                            width = Math.round(height / ratio);
-                        } else if (dimensionMode === 'both' && currentWidthValue !== '' && currentHeightValue !== '') {
-                            height = Math.round(width * ratio);
-                        }
-                    } else if (dimensionMode === 'width') {
-                        height = item.img.height;
-                    } else if (dimensionMode === 'height') {
-                        width = item.img.width;
-                    }
-
-                    text += ` | 原尺寸: ${item.img.width}x${item.img.height}`;
-                    if (width && height) {
-                        text += ` | 調整後: ${width}x${height}`;
-                    }
-                }
-                listItem.textContent = text;
-                fileList.appendChild(listItem);
-            });
-        }
-
-        function toggleQualityContainer() {
-            const qualityContainer = document.getElementById('qualityContainer');
-            qualityContainer.style.display = currentFormatValue === 'image/png' ? 'none' : 'block';
-            updateFileList();
-        }
-
-        function updateDimensionInputs() {
-            if (!originalImages[0]) return;
-            const width = originalImages[0].img.width;
-            const height = originalImages[0].img.height;
-            const options = ['256', '512', '1024', '1280'];
-            currentWidthValue = options.includes(width.toString()) ? width.toString() : '1024';
-            currentHeightValue = options.includes(height.toString()) ? height.toString() : '1024';
-            document.querySelectorAll('#widthContainer .size-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.value === currentWidthValue);
-            });
-            document.querySelectorAll('#heightContainer .size-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.value === currentHeightValue);
-            });
-            document.getElementById('widthInput').classList.toggle('hidden', currentWidthValue !== 'custom');
-            document.getElementById('heightInput').classList.toggle('hidden', currentHeightValue !== 'custom');
-            updateDimensions();
-        }
-
-        function updateDimensions() {
-            if (!originalImages[0]) return;
-
-            const widthInput = parseInt(document.getElementById('widthInput').value) || 0;
-            const heightInput = parseInt(document.getElementById('heightInput').value) || 0;
-            const aspectRatio = document.getElementById('aspectRatio').checked;
-
-            let width = currentWidthValue === 'custom' ? (widthInput || originalImages[0].img.width) : parseInt(currentWidthValue);
-            let height = currentHeightValue === 'custom' ? (heightInput || originalImages[0].img.height) : parseInt(currentHeightValue);
-
-            if (aspectRatio) {
-                const ratio = originalImages[0].img.height / originalImages[0].img.width;
-                if (currentDimensionMode === 'width' && width > 0) {
-                    currentHeightValue = 'custom';
-                    height = Math.round(width * ratio);
-                    document.getElementById('heightInput').value = height;
-                    document.querySelectorAll('#heightContainer .size-button').forEach(btn => {
-                        btn.classList.toggle('active', btn.dataset.value === 'custom');
-                    });
-                    if (!document.getElementById('heightContainer').classList.contains('hidden')) {
-                        document.getElementById('heightInput').classList.remove('hidden');
-                    }
-                } else if (currentDimensionMode === 'height' && height > 0) {
-                    currentWidthValue = 'custom';
-                    width = Math.round(height / ratio);
-                    document.getElementById('widthInput').value = width;
-                    document.querySelectorAll('#widthContainer .size-button').forEach(btn => {
-                        btn.classList.toggle('active', btn.dataset.value === 'custom');
-                    });
-                    if (!document.getElementById('widthContainer').classList.contains('hidden')) {
-                        document.getElementById('widthInput').classList.remove('hidden');
-                    }
-                } else if (currentDimensionMode === 'both' && width > 0) {
-                    currentHeightValue = 'custom';
-                    height = Math.round(width * ratio);
-                    document.getElementById('heightInput').value = height;
-                    document.querySelectorAll('#heightContainer .size-button').forEach(btn => {
-                        btn.classList.toggle('active', btn.dataset.value === 'custom');
-                    });
-                    document.getElementById('heightInput').classList.remove('hidden');
-                }
-            }
-            updateFileList();
-        }
-
-        // 防抖處理輸入框
-        const debouncedUpdateDimensions = debounce(updateDimensions, 300);
-        document.getElementById('widthInput').addEventListener('input', debouncedUpdateDimensions);
-        document.getElementById('heightInput').addEventListener('input', debouncedUpdateDimensions);
-        document.getElementById('qualityInput').addEventListener('input', updateFileList);
-        document.getElementById('aspectRatio').addEventListener('change', updateDimensions);
-
-        function updateProgress(current, total, processedItem = null) {
-            const progressContainer = document.getElementById('progressContainer');
-            const progressFill = document.getElementById('progressFill');
-            const progressText = document.getElementById('progressText');
-            const progressPercentage = document.getElementById('progressPercentage');
-            const timeRemaining = document.getElementById('timeRemaining');
-            
-            progressContainer.style.display = 'block';
-            const percentage = total > 0 ? (current / total) * 100 : 0;
-            progressFill.style.width = `${percentage}%`;
-            progressPercentage.textContent = `${Math.round(percentage)}%`;
-            
-            if (processedItem) {
-                progressText.textContent = `處理中：${current}/${total} (${processedItem})`;
-            } else {
-                progressText.textContent = `處理中：${current}/${total}`;
-            }
-            
-            if (startTime && current > 0) {
-                const elapsedTime = (Date.now() - startTime) / 1000;
-                const timePerItem = elapsedTime / current;
-                const remainingItems = total - current;
-                const remainingTime = timePerItem * remainingItems;
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = validBase64;
+                });
                 
-                if (remainingTime > 60) {
-                    timeRemaining.textContent = `預計剩餘時間：${Math.round(remainingTime / 60)} 分鐘`;
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, format, format === 'image/png' ? 1.0 : quality));
+                const fileName = `converted_image_${Date.now()}.${format.split('/')[1]}`;
+                processedBlobs.push({ blob, name: fileName });
+
+                const thumbnail = document.createElement('img');
+                thumbnail.src = URL.createObjectURL(blob);
+                thumbnail.className = 'thumbnail';
+                thumbnail.title = fileName;
+                document.getElementById('previewContainer').appendChild(thumbnail);
+
+                if (base64Files.length > 0) {
+                    zip.file(fileName, blob);
                 } else {
-                    timeRemaining.textContent = `預計剩餘時間：${Math.round(remainingTime)} 秒`;
-                }
-            }
-        }
-
-        function disableUI() {
-            isProcessing = true;
-            document.querySelectorAll('.file-button, .process-button, .clear-button').forEach(btn => {
-                btn.disabled = true;
-            });
-            document.querySelector('.status-indicator').className = 'status-indicator status-processing';
-        }
-
-        function enableUI() {
-            isProcessing = false;
-            document.querySelectorAll('.file-button, .process-button, .clear-button').forEach(btn => {
-                btn.disabled = false;
-            });
-            document.querySelector('.status-indicator').className = 'status-indicator status-complete';
-        }
-
-        async function processResize() {
-            if (originalImages.length === 0 || !originalImages.some(item => item.type === 'image')) {
-                showError('請先選擇圖片檔案！');
-                return;
-            }
-
-            disableUI();
-            const format = currentFormatValue;
-            const widthInput = parseInt(document.getElementById('widthInput').value);
-            const heightInput = parseInt(document.getElementById('heightInput').value);
-            const aspectRatio = document.getElementById('aspectRatio').checked;
-            const qualityInput = parseInt(document.getElementById('qualityInput').value);
-            const quality = currentQualityValue === 'custom' ? (qualityInput / 100) || 0.9 : parseFloat(currentQualityValue);
-
-            const zip = new JSZip();
-            processedBlobs = [];
-            document.getElementById('previewContainer').innerHTML = '';
-            const totalImages = originalImages.filter(item => item.type === 'image').length;
-            processedCount = 0;
-            totalToProcess = totalImages;
-            startTime = Date.now();
-
-            document.getElementById('progressTitle').textContent = '調整尺寸與格式';
-            updateProgress(0, totalImages);
-
-            for (let i = 0; i < originalImages.length; i++) {
-                const item = originalImages[i];
-                if (item.type !== 'image') continue;
-
-                processedCount++;
-                updateProgress(processedCount, totalImages, item.file.name);
-
-                const img = item.img;
-                const canvas = document.createElement('canvas');
-                let width = currentWidthValue === 'custom' ? (widthInput || img.width) : parseInt(currentWidthValue) || img.width;
-                let height = currentHeightValue === 'custom' ? (heightInput || img.height) : parseInt(currentHeightValue) || img.height;
-
-                if (aspectRatio) {
-                    const ratio = img.height / img.width;
-                    if (currentDimensionMode === 'width' && currentWidthValue !== '') {
-                        height = Math.round(width * ratio);
-                    } else if (currentDimensionMode === 'height' && currentHeightValue !== '') {
-                        width = Math.round(height / ratio);
-                    } else if (currentDimensionMode === 'both' && currentWidthValue !== '' && currentHeightValue !== '') {
-                        height = Math.round(width * ratio);
-                    }
-                } else if (currentDimensionMode === 'width') {
-                    height = img.height;
-                } else if (currentDimensionMode === 'height') {
-                    width = img.width;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                
-                if (format !== 'image/png') {
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                }
-                
-                ctx.drawImage(img, 0, 0, width, height);
-
-                try {
-                    const blob = await new Promise(resolve => canvas.toBlob(resolve, format, format === 'image/png' ? 1.0 : quality));
-                    const originalName = item.file.name.split('.').slice(0, -1).join('.');
-                    const extension = format.split('/')[1];
-                    const newFileName = `${originalName}_${width}x${height}.${extension}`;
-                    processedBlobs.push({ blob, name: newFileName });
-
-                    if (totalImages > 1) {
-                        zip.file(newFileName, blob);
-                    }
-
-                    const thumbnail = document.createElement('img');
-                    thumbnail.src = URL.createObjectURL(blob);
-                    thumbnail.className = 'thumbnail';
-                    thumbnail.dataset.index = i;
-                    thumbnail.title = newFileName;
-                    document.getElementById('previewContainer').appendChild(thumbnail);
-                    
-                    if (processedCount % 5 === 0) {
-                        await new Promise(resolve => setTimeout(resolve, 10));
-                    }
-                } catch (err) {
-                    showError(`處理圖片 ${item.file.name} 失敗：${err.message}`);
-                }
-            }
-
-            document.getElementById('progressContainer').style.display = 'none';
-            const downloadButton = document.getElementById('downloadButton');
-            downloadButton.style.display = 'block';
-
-            if (totalImages === 1) {
-                downloadBlob = processedBlobs[0].blob;
-                downloadFileName = processedBlobs[0].name;
-                downloadButton.textContent = '下載處理後的圖片';
-            } else {
-                try {
-                    updateProgress(processedCount, totalImages, '生成ZIP檔案中...');
-                    downloadBlob = await zip.generateAsync({ type: 'blob' });
-                    downloadFileName = 'processed_images.zip';
-                    downloadButton.textContent = '下載 ZIP 壓縮檔';
-                } catch (err) {
-                    showError(`生成 ZIP 檔案失敗：${err.message}`);
-                }
-            }
-            
-            enableUI();
-            showSuccess('圖片處理完成！');
-        }
-
-        async function processImageToBase64() {
-            if (selectedFileType !== 'image' || !originalImages.some(item => item.type === 'image')) {
-                showError('請先選擇圖片檔案！');
-                return;
-            }
-
-            disableUI();
-            const zip = new JSZip();
-            base64Data = [];
-            document.getElementById('base64OutputContainer').innerHTML = '';
-            const totalImages = originalImages.filter(item => item.type === 'image').length;
-            processedCount = 0;
-            totalToProcess = totalImages;
-            startTime = Date.now();
-
-            document.getElementById('progressTitle').textContent = '圖片轉 Base64';
-            updateProgress(0, totalImages);
-
-            for (let i = 0; i < originalImages.length; i++) {
-                const item = originalImages[i];
-                if (item.type !== 'image') continue;
-
-                processedCount++;
-                updateProgress(processedCount, totalImages, item.file.name);
-
-                const canvas = document.createElement('canvas');
-                canvas.width = item.img.width;
-                canvas.height = item.img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(item.img, 0, 0);
-
-                try {
-                    const base64String = canvas.toDataURL(currentFormatValue);
-                    base64Data.push({ name: item.file.name, base64: base64String });
-
-                    const outputDiv = document.createElement('div');
-                    outputDiv.className = 'file-item';
-                    outputDiv.innerHTML = `<strong>${item.file.name}</strong><br><textarea readonly>${base64String}</textarea>`;
-                    document.getElementById('base64OutputContainer').appendChild(outputDiv);
-
-                    if (totalImages > 1) {
-                        zip.file(`${item.file.name}.txt`, base64String);
-                    }
-                    
-                    if (processedCount % 3 === 0) {
-                        await new Promise(resolve => setTimeout(resolve, 10));
-                    }
-                } catch (err) {
-                    showError(`圖片 ${item.file.name} 轉 Base64 失敗：${err.message}`);
-                }
-            }
-
-            document.getElementById('progressContainer').style.display = 'none';
-            const downloadButton = document.getElementById('downloadButton');
-            downloadButton.style.display = 'block';
-
-            if (totalImages === 1) {
-                const { base64, name } = base64Data[0];
-                downloadBlob = new Blob([base64], { type: 'text/plain' });
-                downloadFileName = `${name}.txt`;
-                downloadButton.textContent = '下載 Base64 檔案';
-            } else {
-                try {
-                    updateProgress(processedCount, totalImages, '生成ZIP檔案中...');
-                    downloadBlob = await zip.generateAsync({ type: 'blob' });
-                    downloadFileName = 'base64_files.zip';
-                    downloadButton.textContent = '下載 Base64 ZIP 壓縮檔';
-                } catch (err) {
-                    showError(`生成 Base64 ZIP 檔案失敗：${err.message}`);
-                }
-            }
-            
-            enableUI();
-            showSuccess('Base64轉換完成！');
-        }
-
-        async function processBase64ToImage() {
-            let base64String = document.getElementById('base64Text').value.trim();
-            const format = currentFormatValue;
-            const qualityInput = parseInt(document.getElementById('qualityInput').value);
-            const quality = currentQualityValue === 'custom' ? (qualityInput / 100) || 0.9 : parseFloat(currentQualityValue);
-            const base64Files = originalImages.filter(item => item.type === 'base64');
-
-            if (!base64String && base64Files.length === 0) {
-                showError('請輸入 Base64 字串或選擇 Base64 檔案！');
-                return;
-            }
-
-            if (selectedFileType === 'image' && !base64String) {
-                showError('請選擇 Base64 檔案或輸入 Base64 字串！');
-                return;
-            }
-
-            disableUI();
-            const zip = new JSZip();
-            processedBlobs = [];
-            document.getElementById('previewContainer').innerHTML = '';
-            const totalItems = (base64String ? 1 : 0) + base64Files.length;
-            processedCount = 0;
-            totalToProcess = totalItems;
-            startTime = Date.now();
-
-            document.getElementById('progressTitle').textContent = 'Base64 轉圖片';
-            updateProgress(0, totalItems);
-
-            if (base64String) {
-                processedCount++;
-                updateProgress(processedCount, totalItems, 'Base64字串');
-
-                let validBase64 = base64String;
-                const prefixes = [
-                    'data:image/jpeg;base64,',
-                    'data:image/png;base64,',
-                    'data:image/webp;base64,',
-                    'data:image/gif;base64,'
-                ];
-                if (!base64String.startsWith('data:image/')) {
-                    for (let prefix of prefixes) {
-                        const testString = prefix + base64String;
-                        const isValid = await tryImageLoad(null, testString, 0, false);
-                        if (isValid) {
-                            validBase64 = testString;
-                            break;
-                        }
-                    }
-                }
-
-                try {
-                    const img = new Image();
-                    await new Promise((resolve, reject) {
-                        img.onload = resolve;
-                        img.onerror = reject;
-                        img.src = validBase64;
-                    });
-                    
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    const blob = await new Promise(resolve => canvas.toBlob(resolve, format, format === 'image/png' ? 1.0 : quality));
-                    const fileName = `converted_image_${Date.now()}.${format.split('/')[1]}`;
-                    processedBlobs.push({ blob, name: fileName });
-
-                    const thumbnail = document.createElement('img');
-                    thumbnail.src = URL.createObjectURL(blob);
-                    thumbnail.className = 'thumbnail';
-                    thumbnail.title = fileName;
-                    document.getElementById('previewContainer').appendChild(thumbnail);
-
-                    if (base64Files.length > 0) {
-                        zip.file(fileName, blob);
-                    } else {
-                        const downloadButton = document.getElementById('downloadButton');
-                        downloadButton.style.display = 'block';
-                        downloadBlob = blob;
-                        downloadFileName = fileName;
-                        downloadButton.textContent = '下載轉換後的圖片';
-                    }
-                } catch (err) {
-                    showError('無法載入 Base64 字串，請確認是否為有效的圖片 Base64 字串！');
-                }
-            }
-
-            for (let i = 0; i < base64Files.length; i++) {
-                const item = base64Files[i];
-                processedCount++;
-                updateProgress(processedCount, totalItems, item.file.name);
-
-                try {
-                    const img = new Image();
-                    await new Promise((resolve, reject) {
-                        img.onload = resolve;
-                        img.onerror = reject;
-                        img.src = item.base64;
-                    });
-                    
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    const blob = await new Promise(resolve => canvas.toBlob(resolve, format, format === 'image/png' ? 1.0 : quality));
-                    const originalName = item.file.name.split('.').slice(0, -1).join('.');
-                    const extension = format.split('/')[1];
-                    const newFileName = `${originalName}.${extension}`;
-                    processedBlobs.push({ blob, name: newFileName });
-                    zip.file(newFileName, blob);
-
-                    const thumbnail = document.createElement('img');
-                    thumbnail.src = URL.createObjectURL(blob);
-                    thumbnail.className = 'thumbnail';
-                    thumbnail.dataset.index = originalImages.indexOf(item);
-                    thumbnail.title = newFileName;
-                    document.getElementById('previewContainer').appendChild(thumbnail);
-                    
-                    if (processedCount % 3 === 0) {
-                        await new Promise(resolve => setTimeout(resolve, 10));
-                    }
-                } catch (err) {
-                    showError(`無法載入 Base64 檔案：${item.file.name}，請確認內容是否為有效的圖片 Base64 字串！`);
-                }
-            }
-
-            if (base64Files.length > 0) {
-                try {
-                    updateProgress(processedCount, totalItems, '生成ZIP檔案中...');
-                    const zipBlob = await zip.generateAsync({ type: 'blob' });
                     const downloadButton = document.getElementById('downloadButton');
                     downloadButton.style.display = 'block';
-                    downloadBlob = zipBlob;
-                    downloadFileName = 'converted_images.zip';
-                    downloadButton.textContent = '下載轉換後的圖片 ZIP 壓縮檔';
-                } catch (err) {
-                    showError(`生成 ZIP 檔案失敗：${err.message}`);
+                    downloadBlob = blob;
+                    downloadFileName = fileName;
+                    downloadButton.textContent = '下载转换后的图片';
                 }
+            } catch (err) {
+                showError('无法加载 Base64 字符串，请确认是否为有效的图片 Base64 字符串！');
             }
-
-            document.getElementById('progressContainer').style.display = 'none';
-            enableUI();
-            showSuccess('Base64轉圖片完成！');
         }
 
-        // 初始化
-        window.onload = function() {
-            switchMode('resize');
-            updateProcessButtons();
-            if (!checkDirectorySupport()) {
-                showError('警告：此瀏覽器不支援資料夾選擇，請使用 Chrome、Edge 或 Safari！');
+        for (let i = 0; i < base64Files.length; i++) {
+            const item = base64Files[i];
+            processedCount++;
+            updateProgress(processedCount, totalItems, item.file.name);
+
+            try {
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = item.base64;
+                });
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, format, format === 'image/png' ? 1.0 : quality));
+                const originalName = item.file.name.split('.').slice(0, -1).join('.');
+                const extension = format.split('/')[1];
+                const newFileName = `${originalName}.${extension}`;
+                processedBlobs.push({ blob, name: newFileName });
+                zip.file(newFileName, blob);
+
+                const thumbnail = document.createElement('img');
+                thumbnail.src = URL.createObjectURL(blob);
+                thumbnail.className = 'thumbnail';
+                thumbnail.dataset.index = originalImages.indexOf(item);
+                thumbnail.title = newFileName;
+                document.getElementById('previewContainer').appendChild(thumbnail);
+                
+                if (processedCount % 3 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+            } catch (err) {
+                showError(`无法加载 Base64 文件：${item.file.name}，请确认内容是否为有效的图片 Base64 字符串！`);
             }
-        };
-    </script>
+        }
+
+        if (base64Files.length > 0) {
+            try {
+                updateProgress(processedCount, totalItems, '生成ZIP文件中...');
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const downloadButton = document.getElementById('downloadButton');
+                downloadButton.style.display = 'block';
+                downloadBlob = zipBlob;
+                downloadFileName = 'converted_images.zip';
+                downloadButton.textContent = '下载转换后的图片 ZIP 压缩档';
+            } catch (err) {
+                showError(`生成 ZIP 文件失败：${err.message}`);
+            }
+        }
+
+        document.getElementById('progressContainer').style.display = 'none';
+        enableUI();
+        showSuccess('Base64转图片完成！');
+    }
+
+    // 初始化
+    window.onload = function() {
+        switchMode('resize');
+        updateProcessButtons();
+        if (!checkDirectorySupport()) {
+            showError('警告：此浏览器不支持文件夹选择，请使用 Chrome、Edge 或 Safari！');
+        }
+    };
+</script>
 </body>
 </html>
